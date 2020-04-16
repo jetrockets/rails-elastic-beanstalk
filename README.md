@@ -21,4 +21,4 @@ These templates were used to deploy the following configuration:
 
 ## Project Schema
 
-![Schema](https://github.com/jetrockets/rails-elastic-beanstalk/.support/schema.png)
+![Schema](https://raw.githubusercontent.com/jetrockets/rails-elastic-beanstalk/master/.support/schema.png)
