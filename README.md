@@ -18,3 +18,7 @@ These templates were used to deploy the following configuration:
 
 * `x-project-server` – templates that should be added to Rails app
 * `x-project-ci-image` – templates for preliminirary image
+
+## Project Schema
+
+![Schema](https://github.com/jetrockets/rails-elastic-beanstalk/.support/schema.png)
