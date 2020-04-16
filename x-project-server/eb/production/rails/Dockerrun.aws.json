@@ -1,0 +1,75 @@
+{
+    "AWSEBDockerrunVersion": "2",
+    "volumes": [
+        {
+          "name": "nginx-proxy-conf",
+          "host": {
+            "sourcePath": "/var/app/current/nginx/conf.d"
+          }
+        },
+        {
+          "name": "nginx-ssl",
+          "host": {
+            "sourcePath": "/var/app/current/ssl"
+          }
+        }
+    ],
+    "containerDefinitions": [
+        {
+            "name": "app",
+            "image": "124427277357.dkr.ecr.us-east-1.amazonaws.com/x-project-server:tag",
+            "essential": true,
+            "command": [
+                "/bin/sh", "/app/bin/docker-start.sh"
+            ],
+            "portMappings": [
+                {
+                    "hostPort": 3000,
+                    "containerPort": 3000
+                }
+            ],
+            "memoryReservation": 1024,
+            "mountPoints": [
+            {
+              "sourceVolume": "awseb-logs-app",
+              "containerPath": "/app/log"
+            }
+            ]
+        },
+        {
+            "name": "nginx",
+            "image": "124427277357.dkr.ecr.us-east-1.amazonaws.com/x-project-server:tag",
+            "essential": true,
+            "command": [
+                "/usr/sbin/nginx", "-g daemon off;"
+            ],
+            "links": [
+            "app"
+            ],
+            "portMappings": [
+                {
+                    "hostPort": 8000,
+                    "containerPort": 8000
+                }
+            ],
+            "memoryReservation": 700,
+            "mountPoints": [
+            {
+              "sourceVolume": "nginx-proxy-conf",
+              "containerPath": "/etc/nginx/conf.d",
+              "readOnly": true
+            },
+            {
+              "sourceVolume": "nginx-ssl",
+              "containerPath": "/etc/nginx/ssl",
+              "readOnly": true
+            },
+            {
+              "sourceVolume": "awseb-logs-nginx",
+              "containerPath": "/var/log/nginx"
+            }
+          ]
+        }
+
+    ]
+}

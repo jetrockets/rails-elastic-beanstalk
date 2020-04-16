@@ -1,0 +1,108 @@
+variables:
+  REPOSITORY_URL: YOUR-ID.dkr.ecr.us-east-1.amazonaws.com/x-project-server
+  REPOSITORY_TAG: $RAILS_ENV-$CI_COMMIT_SHORT_SHA
+  S3_REGION: us-east-1
+  APP_PATH: "/app"
+  LABEL: $CI_PROJECT_NAMESPACE-$RAILS_ENV-$CI_COMMIT_SHORT_SHA
+  POSTGRES_HOST_AUTH_METHOD: trust
+  BASE_IMAGES_URL: $CI_REGISTRY/x-project/x-project-ci-image
+
+
+stages:
+    - rspec
+    - build
+    - deploy
+    - cleanup
+
+notify:
+  image: $BASE_IMAGES_URL:$CI_PROJECT_NAMESPACE-aws-utils
+  stage: .pre
+  environment:
+    name: $CI_COMMIT_BRANCH
+  only:
+    - master
+    - integration
+
+  script:
+    - curl -s -X POST -H 'application/x-www-form-urlencoded' $SLACK_HOOK --data-urlencode "payload=$PAYLOAD"
+
+
+stage_rspec:
+  image: $BASE_IMAGES_URL:$CI_PROJECT_NAMESPACE-app-image
+  stage: rspec
+  services:
+    - postgres:12
+    - redis:5.0.8
+  variables:
+    REDIS_URL: redis://redis
+
+  script:
+    - cp config/database.yml.sample config/database.yml
+    - bundle install
+
+    - RAILS_ENV=test bundle exec rake db:create
+    - RAILS_ENV=test bundle exec rake db:structure:load
+    - RAILS_ENV=test bundle exec rake db:migrate
+
+    - RAILS_ENV=test bundle exec rspec
+
+docker-build:
+  image: $BASE_IMAGES_URL:$CI_PROJECT_NAMESPACE-aws-utils
+  stage: build
+  environment:
+    name: $CI_COMMIT_BRANCH
+  only:
+    - master
+    - integration
+
+  script:
+    - $(aws ecr get-login --no-include-email --profile default)
+    - aws s3 cp s3://s3.environments.x-project.com/.env.$RAILS_ENV .env
+    - aws s3 cp s3://s3.environments.x-project.com/$RAILS_ENV.key config/credentials/$RAILS_ENV.key
+
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $BASE_IMAGES_URL:$CI_PROJECT_NAMESPACE-app-image
+
+    - docker build -t $REPOSITORY_URL:$REPOSITORY_TAG
+      -t $REPOSITORY_URL:$RAILS_ENV-latest
+      --build-arg APP_PATH=$APP_PATH
+      --build-arg DATABASE_URL=$DATABASE_URL
+      --build-arg RAILS_ENV=$RAILS_ENV
+      --build-arg REDIS_URL=$REDIS_URL
+      --build-arg S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID
+      --build-arg S3_BUCKET=$S3_BUCKET
+      --build-arg S3_REGION=$S3_REGION
+      --build-arg S3_SECRET_KEY=$S3_SECRET_KEY
+      --build-arg SECRET_KEY_BASE=$SECRET_KEY_BASE
+      --build-arg WEBHOOKS_API_URL=$WEBHOOKS_API_URL
+      --build-arg WIDGET_SRC=$WIDGET_SRC .
+
+    - docker push $REPOSITORY_URL:$REPOSITORY_TAG
+
+    # "Hypervisor" settings
+    - docker tag $REPOSITORY_URL:$REPOSITORY_TAG $REPOSITORY_URL:$RAILS_ENV-latest
+    - docker push $REPOSITORY_URL:$RAILS_ENV-latest
+
+docker-deploy:
+  image: $BASE_IMAGES_URL:$CI_PROJECT_NAMESPACE-aws-utils
+  stage: deploy
+  environment:
+    name: $CI_COMMIT_BRANCH
+  only:
+    - master
+    - integration
+  script:
+      - ./bin/ci-deploy.sh
+
+cleanup:
+  image: docker:18.09.7-dind
+  stage: cleanup
+  when: always
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - master
+    - integration
+  script:
+    - docker rm `docker ps -qf status=exited`
+    - docker images -q $REPOSITORY_URL | xargs docker rmi || echo "Cleanup complete!"

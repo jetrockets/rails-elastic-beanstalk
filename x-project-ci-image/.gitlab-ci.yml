@@ -1,0 +1,49 @@
+
+variables:
+   RUBY_VERSION_IMAGE: "2.6.5"
+   NODE_VERSION: "12"
+   APP_PATH: "/app"
+   APP_USER: "app"
+
+stages:
+  - build
+
+build_image:
+  # Docker version?
+  # See https://github.com/docker-library/docker/issues/170
+  # Docker image with pre-installed docker package
+  image: docker:18.09.7-dind
+  stage: build
+  before_script:
+    # login to git://x-project/x-project-ci-image and pull images from regestry
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    # Pull all images for use caching.
+    # Statement "|| true" used if images not found and pipeline not failing
+    - docker pull $CI_REGISTRY/x-project/x-project-ci-image/app-image:latest || true
+    - docker pull $CI_REGISTRY/x-project/x-project-ci-image/aws-utils:latest || true
+
+  script:
+    # Build docker image with aws utils and and aws secrets
+    - docker build --cache-from $CI_REGISTRY/x-project/x-project-ci-image/aws-utils:latest
+      -t $CI_REGISTRY/x-project/x-project-ci-image/aws-utils
+        --build-arg AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+        --build-arg AWS_REGION=${AWS_REGION}
+        --build-arg AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+        aws-utils
+
+    # Build docker image with pre-installed linux packages, gems and frontend packages
+    - docker build --cache-from $CI_REGISTRY/x-project/x-project-ci-image/app-image:latest
+      -t $CI_REGISTRY/x-project/x-project-ci-image/ruby-image
+        --build-arg APP_PATH=${APP_PATH}
+        --build-arg APP_USER=${APP_USER}
+        --build-arg NODE_VERSION=${NODE_VERSION}
+        --build-arg RUBY_VERSION_IMAGE=${RUBY_VERSION_IMAGE}
+        app-image
+
+    # login to git.jetrockets.ru/x-project/x-project_ci_image for push images
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+    # Push images to git.jetrockets.ru/x-project/x-project_ci_image in regestry
+    # See git.jetrockets.ru/x-project/x-project_ci_image/container_registry
+    - docker push $CI_REGISTRY/x-project/x-project-ci-image/aws-utils:latest
+    - docker push $CI_REGISTRY/x-project/x-project-ci-image/app-image:latest

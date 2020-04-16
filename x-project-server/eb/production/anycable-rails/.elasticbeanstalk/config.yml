@@ -1,0 +1,20 @@
+branch-defaults:
+  default:
+    environment: Anycable-rails-production
+environment-defaults:
+  Anycable-rails-production:
+    branch: null
+    repository: null
+global:
+  application_name: Production
+  default_ec2_keyname: x-project-ssh-key
+  default_platform: arn:aws:elasticbeanstalk:us-east-1::platform/Multi-container Docker
+    running on 64bit Amazon Linux/2.20.0
+  default_region: us-east-1
+  include_git_submodules: true
+  instance_profile: null
+  platform_name: null
+  platform_version: null
+  profile: x-project-cli-profile
+  sc: null
+  workspace_type: Application

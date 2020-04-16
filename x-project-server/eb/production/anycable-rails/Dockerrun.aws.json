@@ -1,0 +1,28 @@
+{
+    "AWSEBDockerrunVersion": "2",
+    "containerDefinitions": [
+        {
+            "name": "RPC",
+            "image": "YOUR-ID.dkr.ecr.us-east-1.amazonaws.com/x-project-server:tag",
+            "essential": true,
+            "command": [
+                "bundle", "exec", "anycable", "--redis-url=$REDIS_URL/5", "--log-grpc"
+            ],
+            "portMappings": [
+                {
+                    "hostPort": 50051,
+                    "containerPort": 50051
+                }
+            ],
+            "memoryReservation": 400,
+            "mountPoints": [
+             {
+              "sourceVolume": "awseb-logs-RPC",
+              "containerPath": "/app/log"
+             }
+            ]
+
+        }
+
+    ]
+}
