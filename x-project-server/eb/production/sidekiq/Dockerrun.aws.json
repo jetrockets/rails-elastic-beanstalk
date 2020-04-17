@@ -1,0 +1,12 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "124427277357.dkr.ecr.us-east-1.amazonaws.com/x-project-server:tag"
+  },
+    "Ports": [
+    {
+      "ContainerPort": "3000"
+    }
+  ],
+  "Command": "bundle exec sidekiq"
+}
